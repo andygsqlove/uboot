@@ -107,7 +107,7 @@ FIQ_STACK_START:
 
 start_code:
 	/*
-	 * set the cpu to SVC32 mode
+	 * set the cpu to SVC32 mode  设置为管理模式
 	 */
 	mrs	r0, cpsr
 	bic	r0, r0, #0x1f
@@ -132,25 +132,43 @@ copyex:
 #endif
 
 #if defined(CONFIG_S3C2400) || defined(CONFIG_S3C2410)
-	/* turn off the watchdog */
+	/* turn off the watchdog 关闭关门狗*/
 
-# if defined(CONFIG_S3C2400)
+# if 0 //defined(CONFIG_S3C2400)
 #  define pWTCON	0x15300000
 #  define INTMSK	0x14400008	/* Interupt-Controller base addresses */
 #  define CLKDIVN	0x14800014	/* clock divisor register */
-#else
+//#else
 #  define pWTCON	0x53000000
 #  define INTMSK	0x4A000008	/* Interupt-Controller base addresses */
 #  define INTSUBMSK	0x4A00001C
 #  define CLKDIVN	0x4C000014	/* clock divisor register */
 # endif
 
+#  define pWTCON	0x53000000
+#  define INTMSK	0x4A000008	/* Interupt-Controller base addresses */
+#  define INTSUBMSK	0x4A00001C
+#  define CLKDIVN	0x4C000014	/* clock divisor register */
+
+#define	CLK_CTL_BASE	0X4C000000
+#define	MDIV_405		0X7f<<12
+#define PSDIV_405		0x21
+#define MDIV 			MDIV_405
+#define PSDIV			PSDIV_405
+#define CLKDIV			0x5		//FCLK:HCLK:PCLK = 1:4:8
+
+
+
+	
+	/* turn off the watchdog 关闭关门狗*/
+
 	ldr	r0, =pWTCON
 	mov	r1, #0x0
 	str	r1, [r0]
 
 	/*
-	 * mask all IRQs by setting all bits in the INTMR - default
+	 * mask all IRQs by setting all bits in the INTMR - default  
+	 * 屏蔽中断
 	 */
 	mov	r1, #0xffffffff
 	ldr	r0, =INTMSK
@@ -161,11 +179,26 @@ copyex:
 	str	r1, [r0]
 # endif
 
-	/* FCLK:HCLK:PCLK = 1:2:4 */
+	/* FCLK:HCLK:PCLK = 1:4:8 */
 	/* default FCLK is 120 MHz ! */
+	/* 初始化系统时钟 */
+
 	ldr	r0, =CLKDIVN
 	mov	r1, #3
 	str	r1, [r0]
+
+	/*设置arm920t为异步时钟模式,复位时,arm920t处于快速总线时钟模式,在该模式下,
+	arm核心和AMBA总线都由内部低频时钟BCKL控制,设置为异步模式后,arm核心由倍频后的
+	FCLK控制*/
+	mrc p15, 0, r1, c1, c0, 0
+	orr r1, r1, #0xc0000000
+	mrc p15, 0, r1, c1, c0, 0
+	mov r1, #CLK_CTL_BASE
+	mov r2, #MDIV
+	add r2, r2, #PSDIV
+	str r2, [r1,#0x04]
+
+
 #endif	/* CONFIG_S3C2400 || CONFIG_S3C2410 */
 
 	/*
